@@ -1,0 +1,69 @@
+---
+# This playbook contains common plays that will be run on all nodes.
+
+- name: Check status of selinux
+  shell: getenforce
+
+- name: Permissive selinux
+  selinux: policy=targeted state=permissive
+
+- copy: src=nsswitch.conf dest=/etc/nsswitch.conf backup=yes
+
+- name: Configure resolv.conf 
+  template: src=resolv.conf.j2 dest=/etc/resolv.conf
+
+# パッケージの追加
+#- name: Install packages
+#  yum: name={{ item }} state=installed
+#  with_items:
+#   - mariadb-server
+#   - MySQL-python
+#   - libselinux-python
+#   - libsemanage-python
+
+# セキュリティアップデート
+# セキュリティアップデートはrpmの数が不特定かつ多数になりうるので、
+# ansible ではなく手動で適用したほうがよいと思われる。
+
+#
+# 不要サービスの停止
+#- service: name=auditd state=stopped enabled=no
+
+#
+# firewalldの設定
+#
+# linux ユーザの追加
+- name: add a new user
+  user: name=kiarina state=present
+  register: user_result
+
+- debug: var=user_result
+
+#
+#  /etc/sysctlの設定
+# - sysctl: name=vm.swappiness value=5 state=present
+#
+#  sshd の設定
+- name: Configure sshd_config
+  template: src=sshd_config.j2 dest=/etc/ssh/sshd_config
+
+
+- name: Install ntp 
+  yum: name=ntp state=present
+  tags: ntp
+
+- name: Configure ntp file
+  template: src=ntp.conf.j2 dest=/etc/ntp.conf
+  tags: ntp
+  notify: restart ntp
+
+- name: Start the ntp service
+  service: name=ntpd state=started enabled=yes
+  tags: ntp
+
+
+# 個別ミドルの設定  commonではなく、個別roleに記述したほうがいいかも
+- copy: src=cron_root dest=/var/spool/cron/root backup=no
+
+
+
